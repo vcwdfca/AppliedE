@@ -17,23 +17,22 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
+import net.minecraft.entity.player.InventoryPlayer;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.storage.AEKeyFilter;
-import appeng.api.storage.ITerminalHost;
-import appeng.core.network.clientbound.MEInventoryUpdatePacket;
-import appeng.menu.AEBaseMenu;
-import appeng.menu.me.common.IncrementalUpdateHelper;
-import appeng.menu.me.common.MEStorageMenu;
+import ae2.api.networking.IGridNode;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.storage.AEKeyFilter;
+import ae2.api.storage.ITerminalHost;
+import ae2.container.AEBaseContainer;
+import ae2.container.me.common.ContainerMEStorage;
+import ae2.container.me.common.IncrementalUpdateHelper;
+import ae2.core.network.clientbound.MEInventoryUpdatePacket;
 
 import gripe._90.appliede.me.reporting.TransmutablePacketBuilder;
 import gripe._90.appliede.me.service.KnowledgeService;
 
-@Mixin(MEStorageMenu.class)
-public abstract class MEStorageMenuMixin extends AEBaseMenu {
+@Mixin(ContainerMEStorage.class)
+public abstract class MEStorageMenuMixin extends AEBaseContainer {
     @Shadow
     @Final
     private IncrementalUpdateHelper updateHelper;
@@ -44,8 +43,8 @@ public abstract class MEStorageMenuMixin extends AEBaseMenu {
     @Unique
     private Set<AEItemKey> appliede$previousTransmutables = new HashSet<>();
 
-    public MEStorageMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, ITerminalHost host) {
-        super(menuType, id, playerInventory, host);
+    public MEStorageMenuMixin(InventoryPlayer playerInventory, ITerminalHost host) {
+        super(playerInventory, host);
     }
 
     @Shadow
@@ -61,13 +60,13 @@ public abstract class MEStorageMenuMixin extends AEBaseMenu {
         }
 
         return getGridNode() != null && getGridNode().isActive()
-                ? getGridNode().getGrid().getService(KnowledgeService.class).getKnownItems()
+                ? getGridNode().grid().getService(KnowledgeService.class).getKnownItems()
                 : Collections.emptySet();
     }
 
     @Inject(
             method = "broadcastChanges",
-            at = @At(value = "INVOKE", target = "Lappeng/menu/me/common/IncrementalUpdateHelper;hasChanges()Z"))
+            at = @At(value = "INVOKE", target = "Lae2/container/me/common/IncrementalUpdateHelper;hasChanges()Z"))
     private void addTransmutables(CallbackInfo ci) {
         appliede$transmutables = appliede$getTransmutablesFromGrid();
         Sets.difference(appliede$previousTransmutables, appliede$transmutables).forEach(updateHelper::addChange);
@@ -79,7 +78,7 @@ public abstract class MEStorageMenuMixin extends AEBaseMenu {
             method = "broadcastChanges",
             at = @At(
                     value = "INVOKE",
-                    target = "Lappeng/core/network/clientbound/MEInventoryUpdatePacket$Builder;setFilter(Lappeng/api/storage/AEKeyFilter;)V"))
+                    target = "Lae2/core/network/clientbound/MEInventoryUpdatePacket$Builder;setFilter(Lae2/api/storage/AEKeyFilter;)V"))
     // spotless:on
     private MEInventoryUpdatePacket.Builder addTransmutables(
             MEInventoryUpdatePacket.Builder builder, AEKeyFilter filter) {
@@ -89,7 +88,7 @@ public abstract class MEStorageMenuMixin extends AEBaseMenu {
 
     @Inject(
             method = "broadcastChanges",
-            at = @At(value = "INVOKE", target = "Lappeng/menu/AEBaseMenu;broadcastChanges()V"))
+            at = @At(value = "INVOKE", target = "Lae2/container/AEBaseContainer;broadcastChanges()V"))
     private void addPreviousTransmutables(CallbackInfo ci) {
         appliede$previousTransmutables = ImmutableSet.copyOf(appliede$transmutables);
     }

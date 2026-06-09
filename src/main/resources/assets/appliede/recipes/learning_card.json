@@ -1,0 +1,19 @@
+{
+  "type": "forge:ore_shapeless",
+  "ingredients": [
+    {
+      "item": "ae2:advanced_card"
+    },
+    {
+      "item": "projecte:item.pe_transmutation_tablet"
+    },
+    {
+      "item": "projecte:item.pe_matter",
+      "data": 1
+    }
+  ],
+  "result": {
+    "item": "appliede:learning_card",
+    "count": 1
+  }
+}

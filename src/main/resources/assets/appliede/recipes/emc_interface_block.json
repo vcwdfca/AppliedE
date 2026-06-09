@@ -1,0 +1,12 @@
+{
+  "type": "forge:ore_shapeless",
+  "ingredients": [
+    {
+      "item": "appliede:cable_emc_interface"
+    }
+  ],
+  "result": {
+    "item": "appliede:emc_interface",
+    "count": 1
+  }
+}

@@ -1,41 +1,44 @@
 package gripe._90.appliede.block;
 
-import org.jetbrains.annotations.NotNull;
+import ae2.block.AEBaseTileBlock;
+import ae2.util.InteractionUtil;
+import gripe._90.appliede.gui.AppliedEGuiIds;
+import gripe._90.appliede.gui.AppliedEGuiOpener;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-
-import appeng.block.AEBaseEntityBlock;
-import appeng.menu.locator.MenuLocators;
-import appeng.util.InteractionUtil;
-
-public class EMCInterfaceBlock extends AEBaseEntityBlock<EMCInterfaceBlockEntity> {
+public class EMCInterfaceBlock extends AEBaseTileBlock<EMCInterfaceBlockEntity> {
     public EMCInterfaceBlock() {
-        super(metalProps());
+        super(Material.IRON);
+        setHardness(2.2F);
+        setResistance(11.0F);
+        setTileEntity(EMCInterfaceBlockEntity.class);
     }
 
-    @NotNull
     @Override
-    public InteractionResult useWithoutItem(
-            BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand,
+                                    EnumFacing side, float hitX, float hitY, float hitZ) {
+        if (super.onBlockActivated(world, pos, state, player, hand, side, hitX, hitY, hitZ)) {
+            return true;
+        }
+
         if (InteractionUtil.isInAlternateUseMode(player)) {
-            return InteractionResult.PASS;
+            return false;
         }
 
-        var be = getBlockEntity(level, pos);
-
-        if (be != null) {
-            if (!level.isClientSide()) {
-                be.openMenu(player, MenuLocators.forBlockEntity(be));
+        EMCInterfaceBlockEntity tile = getTileEntity(world, pos);
+        if (tile != null) {
+            if (!world.isRemote) {
+                AppliedEGuiOpener.openTileGui(player, AppliedEGuiIds.EMC_INTERFACE, tile);
             }
-
-            return InteractionResult.sidedSuccess(level.isClientSide());
+            return true;
         }
 
-        return InteractionResult.PASS;
+        return false;
     }
 }

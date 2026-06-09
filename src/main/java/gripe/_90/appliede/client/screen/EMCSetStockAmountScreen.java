@@ -1,27 +1,29 @@
 package gripe._90.appliede.client.screen;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
-import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.NumberEntryType;
-import appeng.client.gui.implementations.AESubScreen;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.widgets.NumberEntryWidget;
-import appeng.core.localization.GuiText;
-
+import ae2.client.gui.AEBaseGui;
+import ae2.client.gui.NumberEntryType;
+import ae2.client.gui.implementations.AESubGui;
+import ae2.client.gui.style.GuiStyle;
+import ae2.client.gui.widgets.NumberEntryWidget;
+import ae2.core.localization.GuiText;
 import gripe._90.appliede.menu.EMCSetStockAmountMenu;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.util.text.ITextComponent;
 
-public class EMCSetStockAmountScreen extends AEBaseScreen<EMCSetStockAmountMenu> {
+public class EMCSetStockAmountScreen extends AEBaseGui<EMCSetStockAmountMenu> {
     private final NumberEntryWidget amount;
-    private boolean amountInitialised;
+    private boolean amountInitialized;
 
     public EMCSetStockAmountScreen(
-            EMCSetStockAmountMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
-        super(menu, playerInventory, title, style);
+        EMCSetStockAmountMenu menu,
+        InventoryPlayer playerInventory,
+        ITextComponent title,
+        GuiStyle style
+    ) {
+        super(menu, playerInventory, style);
 
         widgets.addButton("save", GuiText.Set.text(), this::confirm);
-        AESubScreen.addBackButton(menu, "back", widgets);
+        AESubGui.addBackButton(menu, "back", widgets);
 
         amount = widgets.addNumberEntryWidget("amountToStock", NumberEntryType.UNITLESS);
         amount.setLongValue(1);
@@ -35,19 +37,18 @@ public class EMCSetStockAmountScreen extends AEBaseScreen<EMCSetStockAmountMenu>
     protected void updateBeforeRender() {
         super.updateBeforeRender();
 
-        if (!amountInitialised) {
-            var whatToStock = menu.getWhatToStock();
+        if (!amountInitialized) {
+            var whatToStock = container.getWhatToStock();
             if (whatToStock != null) {
                 amount.setType(NumberEntryType.of(whatToStock));
-                amount.setLongValue(menu.getInitialAmount());
-
-                amount.setMaxValue(menu.getMaxAmount());
-                amountInitialised = true;
+                amount.setLongValue(container.getInitialAmount());
+                amount.setMaxValue(container.getMaxAmount());
+                amountInitialized = true;
             }
         }
     }
 
     private void confirm() {
-        amount.getIntValue().ifPresent(menu::confirm);
+        amount.getIntValue().ifPresent(container::confirm);
     }
 }

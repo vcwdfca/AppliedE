@@ -3,7 +3,7 @@ package gripe._90.appliede.mixin.tooltip;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
-import appeng.menu.me.common.GridInventoryEntry;
+import ae2.container.me.common.GridInventoryEntry;
 
 import gripe._90.appliede.me.reporting.GridInventoryEMCEntry;
 

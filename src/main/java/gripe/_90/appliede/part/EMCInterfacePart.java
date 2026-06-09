@@ -1,28 +1,32 @@
 package gripe._90.appliede.part;
 
 import java.util.List;
+import javax.annotation.Nullable;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import ae2.api.inventories.InternalInventory;
+import ae2.api.networking.GridHelper;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.IGridNodeListener;
+import ae2.api.networking.IManagedGridNode;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.Vec3d;
 
-import appeng.api.networking.GridHelper;
-import appeng.api.networking.IGridNodeListener;
-import appeng.api.networking.IManagedGridNode;
-import appeng.api.parts.IPartCollisionHelper;
-import appeng.api.parts.IPartItem;
-import appeng.api.parts.IPartModel;
-import appeng.api.util.AECableType;
-import appeng.core.AppEng;
-import appeng.items.parts.PartModels;
-import appeng.menu.locator.MenuLocators;
-import appeng.parts.AEBasePart;
-import appeng.parts.PartModel;
+import ae2.api.parts.IPartCollisionHelper;
+import ae2.api.parts.IPartItem;
+import ae2.api.parts.IPartModel;
+import ae2.api.util.AECableType;
+import ae2.core.AppEng;
+import ae2.items.parts.PartModels;
+import ae2.parts.AEBasePart;
+import ae2.parts.PartModel;
 
 import gripe._90.appliede.AppliedE;
+import gripe._90.appliede.AppliedEItems;
+import gripe._90.appliede.gui.AppliedEGuiIds;
+import gripe._90.appliede.gui.AppliedEGuiOpener;
 import gripe._90.appliede.me.misc.EMCInterfaceLogic;
 import gripe._90.appliede.me.misc.EMCInterfaceLogicHost;
 
@@ -39,14 +43,23 @@ public class EMCInterfacePart extends AEBasePart implements EMCInterfaceLogicHos
     private static final PartModel MODELS_HAS_CHANNEL =
             new PartModel(MODEL_BASE, AppEng.makeId("part/interface_has_channel"));
 
-    private final EMCInterfaceLogic logic = createLogic();
+    private static final IGridNodeListener<EMCInterfacePart> NODE_LISTENER = new NodeListener<>() {
+        @Override
+        public void onGridChanged(EMCInterfacePart host, IGridNode node) {
+            super.onGridChanged(host, node);
+            host.logic.gridChanged();
+        }
+    };
+
+    private final EMCInterfaceLogic logic = new EMCInterfaceLogic(getMainNode(), this, AppliedEItems.CABLE_EMC_INTERFACE);
 
     public EMCInterfacePart(IPartItem<?> partItem) {
         super(partItem);
     }
 
-    protected EMCInterfaceLogic createLogic() {
-        return new EMCInterfaceLogic(getMainNode(), this, getPartItem().asItem());
+    @Override
+    public void saveChanges() {
+        getHost().markForSave();
     }
 
     @Override
@@ -55,29 +68,23 @@ public class EMCInterfacePart extends AEBasePart implements EMCInterfaceLogicHos
     }
 
     @Override
-    public EMCInterfaceLogic getInterfaceLogic() {
-        return logic;
-    }
-
-    @Override
-    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+    protected void onMainNodeStateChanged(IGridNodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
-
         if (getMainNode().hasGridBooted()) {
             logic.notifyNeighbours();
         }
     }
 
     @Override
-    public void readFromNBT(CompoundTag data, HolderLookup.Provider registries) {
-        super.readFromNBT(data, registries);
-        logic.readFromNBT(data, registries);
+    public void readFromNBT(NBTTagCompound data) {
+        super.readFromNBT(data);
+        logic.readFromNBT(data);
     }
 
     @Override
-    public void writeToNBT(CompoundTag data, HolderLookup.Provider registries) {
-        super.writeToNBT(data, registries);
-        logic.writeToNBT(data, registries);
+    public void writeToNBT(NBTTagCompound data) {
+        super.writeToNBT(data);
+        logic.writeToNBT(data);
     }
 
     @Override
@@ -93,14 +100,14 @@ public class EMCInterfacePart extends AEBasePart implements EMCInterfaceLogicHos
     }
 
     @Override
-    public void saveChanges() {
-        getHost().markForSave();
+    public EMCInterfaceLogic getInterfaceLogic() {
+        return logic;
     }
 
     @Override
-    public boolean onUseWithoutItem(Player player, Vec3 pos) {
-        if (!player.getCommandSenderWorld().isClientSide()) {
-            openMenu(player, MenuLocators.forPart(this));
+    public boolean onUseWithoutItem(EntityPlayer player, Vec3d pos) {
+        if (!isClientSide()) {
+            AppliedEGuiOpener.openPartGui(player, AppliedEGuiIds.EMC_INTERFACE, this);
         }
 
         return true;
@@ -122,8 +129,17 @@ public class EMCInterfacePart extends AEBasePart implements EMCInterfaceLogicHos
         return isActive() ? MODELS_HAS_CHANNEL : isPowered() ? MODELS_ON : MODELS_OFF;
     }
 
+    @Nullable
     @Override
-    public ItemStack getMainMenuIcon() {
-        return new ItemStack(getPartItem());
+    public InternalInventory getSubInventory(ResourceLocation id) {
+        if (id.equals(UPGRADES)) {
+            return logic.getUpgrades();
+        }
+        return super.getSubInventory(id);
+    }
+
+    @Override
+    public ItemStack getMainContainerIcon() {
+        return getPartItem().asItemStack();
     }
 }

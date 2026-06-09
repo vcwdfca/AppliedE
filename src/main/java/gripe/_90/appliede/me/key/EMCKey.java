@@ -3,35 +3,28 @@ package gripe._90.appliede.me.key;
 import java.util.List;
 import java.util.Objects;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.MapCodec;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.AEKeyType;
 import gripe._90.appliede.AppliedE;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTBase;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 public final class EMCKey extends AEKey {
-    static final MapCodec<EMCKey> MAP_CODEC = Codec.INT.fieldOf("tier").xmap(EMCKey::of, key -> key.tier);
-    static final Codec<EMCKey> CODEC = MAP_CODEC.codec();
-
     public static final EMCKey BASE = new EMCKey(1);
 
     private final int tier;
 
     private EMCKey(int tier) {
         if (tier <= 0) {
-            throw new IllegalArgumentException("Tier must be non-negative");
+            throw new IllegalArgumentException("Tier must be positive");
         }
 
         this.tier = tier;
@@ -39,6 +32,10 @@ public final class EMCKey extends AEKey {
 
     public static EMCKey of(int tier) {
         return tier == 1 ? BASE : new EMCKey(tier);
+    }
+
+    static EMCKey fromTag(NBTTagCompound tag) {
+        return of(tag.getInteger("tier"));
     }
 
     public int getTier() {
@@ -56,9 +53,10 @@ public final class EMCKey extends AEKey {
     }
 
     @Override
-    public CompoundTag toTag(HolderLookup.Provider registries) {
-        var ops = registries.createSerializationContext(NbtOps.INSTANCE);
-        return (CompoundTag) CODEC.encodeStart(ops, this).getOrThrow();
+    public NBTTagCompound toTag() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setInteger("tier", tier);
+        return tag;
     }
 
     @Override
@@ -68,26 +66,46 @@ public final class EMCKey extends AEKey {
 
     @Override
     public ResourceLocation getId() {
-        return ResourceLocation.fromNamespaceAndPath("projecte", "emc_" + tier);
+        return new ResourceLocation("projecte", "emc_" + tier);
     }
 
     @Override
-    public void writeToPacket(RegistryFriendlyByteBuf data) {
+    public void writeToPacket(PacketBuffer data) {
         data.writeVarInt(tier);
     }
 
+    @Nullable
     @Override
-    protected Component computeDisplayName() {
-        return Component.translatable("key." + AppliedE.MODID + ".emc" + (tier == 1 ? "" : "_tiered"), tier);
+    public Object getReadOnlyStack() {
+        return null;
+    }
+
+    @Override
+    protected ITextComponent computeDisplayName() {
+        return new TextComponentTranslation(
+            "key." + AppliedE.MODID + ".emc" + (tier == 1 ? "" : "_tiered"),
+            tier);
+    }
+
+    @Override
+    public void addDrops(long amount, List<ItemStack> drops, World level, BlockPos pos) {
+    }
+
+    @Override
+    public boolean isTagged(String tag) {
+        return false;
+    }
+
+    @Nullable
+    @Override
+    public NBTBase get(String componentId) {
+        return null;
     }
 
     @Override
     public boolean hasComponents() {
-        return true;
+        return false;
     }
-
-    @Override
-    public void addDrops(long l, List<ItemStack> list, Level level, BlockPos blockPos) {}
 
     @Override
     public boolean equals(Object obj) {

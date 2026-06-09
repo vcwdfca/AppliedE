@@ -2,14 +2,15 @@ package gripe._90.appliede.integration.tooltip;
 
 import java.util.Objects;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 
-import appeng.api.integrations.igtooltip.TooltipBuilder;
-import appeng.api.integrations.igtooltip.TooltipContext;
-import appeng.api.integrations.igtooltip.providers.BodyProvider;
-import appeng.api.integrations.igtooltip.providers.ServerDataProvider;
+import ae2.api.integrations.igtooltip.TooltipBuilder;
+import ae2.api.integrations.igtooltip.TooltipContext;
+import ae2.api.integrations.igtooltip.providers.BodyProvider;
+import ae2.api.integrations.igtooltip.providers.ServerDataProvider;
 
 import gripe._90.appliede.AppliedE;
 import gripe._90.appliede.part.EMCModulePart;
@@ -21,16 +22,18 @@ public class ModuleDataProvider implements BodyProvider<EMCModulePart>, ServerDa
     private ModuleDataProvider() {}
 
     @Override
-    public void provideServerData(Player player, EMCModulePart module, CompoundTag serverData) {
+    public void provideServerData(EntityPlayer player, EMCModulePart module, NBTTagCompound serverData) {
         var node = Objects.requireNonNull(module.getGridNode());
         var uuid = node.getOwningPlayerProfileId();
 
         if (uuid != null) {
-            var profileCache = node.getLevel().getServer().getProfileCache();
+            var profileCache = node.getLevel().getMinecraftServer().getPlayerProfileCache();
 
             if (profileCache != null) {
-                var profile = profileCache.get(uuid);
-                profile.ifPresent(p -> serverData.putString("owner", p.getName()));
+                var profile = profileCache.getProfileByUUID(uuid);
+                if (profile != null) {
+                    serverData.setString("owner", profile.getName());
+                }
             }
         }
     }
@@ -39,9 +42,11 @@ public class ModuleDataProvider implements BodyProvider<EMCModulePart>, ServerDa
     public void buildTooltip(EMCModulePart module, TooltipContext context, TooltipBuilder tooltip) {
         var serverData = context.serverData();
 
-        if (serverData.contains("owner")) {
+        if (serverData.hasKey("owner")) {
             var owner = serverData.getString("owner");
-            tooltip.addLine(Component.translatable("tooltip." + AppliedE.MODID + ".owner", owner));
+            var label = new TextComponentTranslation("tooltip." + AppliedE.MODID + ".owner");
+            label.appendSibling(new TextComponentString(": " + owner));
+            tooltip.addLine(label);
         }
     }
 }

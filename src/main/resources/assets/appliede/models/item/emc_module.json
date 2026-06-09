@@ -2,7 +2,7 @@
   "credit": "Made with Blockbench by Sea_Kerman",
   "parent": "ae2:item/part_base",
   "textures": {
-    "1": "appliede:part/emc_module_side",
+    "side": "appliede:part/emc_module_side",
     "front": "appliede:part/emc_module",
     "particle": "appliede:part/emc_module_side"
   },
@@ -35,8 +35,8 @@
     },
     {
       "name": "internals",
-      "from": [9, 5, 9],
-      "to": [7, 11, 10],
+      "from": [7, 5, 9],
+      "to": [9, 11, 10],
       "faces": {
         "east": { "uv": [15, 10, 16, 16], "texture": "#side" },
         "west": { "uv": [15, 10, 16, 16], "texture": "#side" }
@@ -44,8 +44,8 @@
     },
     {
       "name": "internals",
-      "from": [5, 9, 9],
-      "to": [11, 7, 10],
+      "from": [5, 7, 9],
+      "to": [11, 9, 10],
       "faces": {
         "up": { "uv": [15, 10, 16, 16], "rotation": 270, "texture": "#side" },
         "down": { "uv": [15, 10, 16, 16], "rotation": 270, "texture": "#side" }

@@ -1,0 +1,31 @@
+{
+  "type": "forge:ore_shaped",
+  "pattern": [
+    " a ",
+    "iti",
+    "dsd"
+  ],
+  "key": {
+    "a": {
+      "item": "ae2:annihilation_core"
+    },
+    "i": {
+      "type": "forge:ore_dict",
+      "ore": "ingotIron"
+    },
+    "t": {
+      "item": "projecte:item.pe_transmutation_tablet"
+    },
+    "d": {
+      "item": "projecte:item.pe_matter",
+      "data": 0
+    },
+    "s": {
+      "item": "minecraft:sticky_piston"
+    }
+  },
+  "result": {
+    "item": "appliede:emc_import_bus",
+    "count": 1
+  }
+}

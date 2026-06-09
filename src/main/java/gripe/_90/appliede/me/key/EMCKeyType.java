@@ -1,32 +1,33 @@
 package gripe._90.appliede.me.key;
 
-import com.mojang.serialization.MapCodec;
-
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.AEKeyType;
 import gripe._90.appliede.AppliedE;
 import gripe._90.appliede.AppliedEConfig;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
+import org.jetbrains.annotations.Nullable;
 
 public final class EMCKeyType extends AEKeyType {
     public static final EMCKeyType TYPE = new EMCKeyType();
-    private static final Component EMC = Component.translatable("key." + AppliedE.MODID + ".emc");
+    private static final ITextComponent EMC = new TextComponentTranslation("key." + AppliedE.MODID + ".emc");
 
     private EMCKeyType() {
         super(AppliedE.id("emc"), EMCKey.class, EMC);
     }
 
+    @Nullable
     @Override
-    public MapCodec<? extends AEKey> codec() {
-        return EMCKey.MAP_CODEC;
+    public AEKey readFromPacket(PacketBuffer input) {
+        return EMCKey.of(input.readVarInt());
     }
 
+    @Nullable
     @Override
-    public AEKey readFromPacket(RegistryFriendlyByteBuf input) {
-        return EMCKey.of(input.readVarInt());
+    public AEKey loadKeyFromTag(NBTTagCompound tag) {
+        return EMCKey.fromTag(tag);
     }
 
     @Override
@@ -40,7 +41,7 @@ public final class EMCKeyType extends AEKeyType {
     }
 
     @Override
-    public Component getDescription() {
+    public ITextComponent getDescription() {
         return EMC;
     }
 }

@@ -1,0 +1,31 @@
+{
+  "type": "forge:ore_shaped",
+  "pattern": [
+    "ifi",
+    "dtd",
+    " p "
+  ],
+  "key": {
+    "i": {
+      "type": "forge:ore_dict",
+      "ore": "ingotIron"
+    },
+    "f": {
+      "item": "ae2:formation_core"
+    },
+    "d": {
+      "item": "projecte:item.pe_matter",
+      "data": 0
+    },
+    "t": {
+      "item": "projecte:item.pe_transmutation_tablet"
+    },
+    "p": {
+      "item": "minecraft:piston"
+    }
+  },
+  "result": {
+    "item": "appliede:emc_export_bus",
+    "count": 1
+  }
+}

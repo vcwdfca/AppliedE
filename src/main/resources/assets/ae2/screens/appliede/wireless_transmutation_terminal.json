@@ -1,6 +1,6 @@
 {
   "includes": [
-    "transmutation_terminal.json",
-    "../wtlib/universal_terminal.json"
+    "../terminals/wireless_terminal.json",
+    "transmutation_terminal.json"
   ]
 }

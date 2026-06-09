@@ -1,27 +1,13 @@
 package gripe._90.appliede.client;
 
-import net.neoforged.fml.config.IConfigSpec;
-import net.neoforged.neoforge.common.ModConfigSpec;
-
 public class AppliedEClientConfig {
-    public static final AppliedEClientConfig CONFIG;
-    public static final IConfigSpec SPEC;
+    public static final AppliedEClientConfig CONFIG = new AppliedEClientConfig();
 
-    static {
-        var configured = new ModConfigSpec.Builder().configure(AppliedEClientConfig::new);
-        CONFIG = configured.getKey();
-        SPEC = configured.getValue();
-    }
+    private static final int EMC_TIER_COLOURS = 10;
 
-    private final ModConfigSpec.IntValue emcTierColours;
-
-    private AppliedEClientConfig(ModConfigSpec.Builder builder) {
-        emcTierColours = builder.comment(
-                        "How many different colours should be used to represent higher tiers of EMC in storage")
-                .defineInRange("emcTierColours", 10, 1, Integer.MAX_VALUE);
-    }
+    private AppliedEClientConfig() {}
 
     public int getEmcTierColours() {
-        return emcTierColours.getAsInt();
+        return EMC_TIER_COLOURS;
     }
 }

@@ -2,38 +2,42 @@ package gripe._90.appliede.block;
 
 import java.util.List;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-
-import appeng.api.networking.GridHelper;
-import appeng.api.networking.IGridNodeListener;
-import appeng.api.networking.IManagedGridNode;
-import appeng.blockentity.grid.AENetworkedBlockEntity;
-
-import gripe._90.appliede.AppliedE;
+import ae2.api.AECapabilities;
+import ae2.api.networking.GridHelper;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.IGridNodeListener;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.util.AECableType;
+import ae2.tile.grid.AENetworkedTile;
+import gripe._90.appliede.AppliedEItems;
 import gripe._90.appliede.me.misc.EMCInterfaceLogic;
 import gripe._90.appliede.me.misc.EMCInterfaceLogicHost;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+import net.minecraftforge.common.capabilities.Capability;
+import org.jetbrains.annotations.Nullable;
 
-public class EMCInterfaceBlockEntity extends AENetworkedBlockEntity implements EMCInterfaceLogicHost {
-    private final EMCInterfaceLogic logic = createLogic();
+public class EMCInterfaceBlockEntity extends AENetworkedTile implements EMCInterfaceLogicHost {
+    private static final IGridNodeListener<EMCInterfaceBlockEntity> NODE_LISTENER = new IGridNodeListener<>() {
+        @Override
+        public void onSaveChanges(EMCInterfaceBlockEntity host, IGridNode node) {
+            host.saveChanges();
+        }
 
-    public EMCInterfaceBlockEntity(BlockPos pos, BlockState state) {
-        this(AppliedE.EMC_INTERFACE_BE.get(), pos, state);
-    }
+        @Override
+        public void onGridChanged(EMCInterfaceBlockEntity host, IGridNode node) {
+            host.logic.gridChanged();
+        }
 
-    public EMCInterfaceBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-        super(type, pos, state);
-    }
+        @Override
+        public void onStateChanged(EMCInterfaceBlockEntity host, IGridNode node, State state) {
+            host.onMainNodeStateChanged(state);
+        }
+    };
 
-    protected EMCInterfaceLogic createLogic() {
-        return new EMCInterfaceLogic(getMainNode(), this, getItemFromBlockEntity());
-    }
+    private final EMCInterfaceLogic logic = new EMCInterfaceLogic(getMainNode(), this, AppliedEItems.EMC_INTERFACE);
 
     @Override
     protected IManagedGridNode createMainNode() {
@@ -53,20 +57,20 @@ public class EMCInterfaceBlockEntity extends AENetworkedBlockEntity implements E
     }
 
     @Override
-    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
-        super.saveAdditional(data, registries);
-        logic.writeToNBT(data, registries);
+    public void saveAdditional(NBTTagCompound data) {
+        super.saveAdditional(data);
+        logic.writeToNBT(data);
     }
 
     @Override
-    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        super.loadTag(data, registries);
-        logic.readFromNBT(data, registries);
+    public void loadTag(NBTTagCompound data) {
+        super.loadTag(data);
+        logic.readFromNBT(data);
     }
 
     @Override
-    public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
-        super.addAdditionalDrops(level, pos, drops);
+    public void addAdditionalDrops(List<ItemStack> drops) {
+        super.addAdditionalDrops(drops);
         logic.addDrops(drops);
     }
 
@@ -77,12 +81,42 @@ public class EMCInterfaceBlockEntity extends AENetworkedBlockEntity implements E
     }
 
     @Override
-    protected Item getItemFromBlockEntity() {
-        return AppliedE.EMC_INTERFACE.asItem();
+    public TileEntity getTileEntity() {
+        return this;
     }
 
     @Override
-    public ItemStack getMainMenuIcon() {
-        return AppliedE.EMC_INTERFACE.asItem().getDefaultInstance();
+    public ItemStack getItemFromTile() {
+        return new ItemStack(AppliedEItems.EMC_INTERFACE);
+    }
+
+    @Override
+    public AECableType getCableConnectionType(EnumFacing dir) {
+        return AECableType.SMART;
+    }
+
+    @Override
+    public ItemStack getMainContainerIcon() {
+        return new ItemStack(AppliedEItems.EMC_INTERFACE);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
+        if (capability == AECapabilities.ME_STORAGE) {
+            return (T) logic.getInventory();
+        }
+        if (capability == AECapabilities.GENERIC_INTERNAL_INV) {
+            return (T) logic.getStorage();
+        }
+        return super.getCapability(capability, facing);
+    }
+
+    @Override
+    public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
+        if (capability == AECapabilities.ME_STORAGE || capability == AECapabilities.GENERIC_INTERNAL_INV) {
+            return true;
+        }
+        return super.hasCapability(capability, facing);
     }
 }

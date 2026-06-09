@@ -11,42 +11,34 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.player.Player;
-import net.neoforged.neoforge.common.NeoForge;
-
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridService;
-import appeng.api.networking.IGridServiceProvider;
-import appeng.api.networking.IManagedGridNode;
-import appeng.api.networking.crafting.ICraftingProvider;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.storage.IStorageProvider;
-import appeng.api.storage.MEStorage;
-import appeng.me.storage.NullInventory;
-
+import ae2.api.crafting.IPatternDetails;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.IGridService;
+import ae2.api.networking.IGridServiceProvider;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.networking.crafting.ICraftingProvider;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.storage.IStorageProvider;
+import ae2.api.storage.MEStorage;
+import ae2.me.storage.NullInventory;
 import gripe._90.appliede.AppliedEConfig;
 import gripe._90.appliede.part.EMCModulePart;
-
+import moze_intel.projecte.api.ProjectEAPI;
 import moze_intel.projecte.api.capabilities.IKnowledgeProvider;
-import moze_intel.projecte.api.event.EMCRemapEvent;
-import moze_intel.projecte.api.event.PlayerKnowledgeChangeEvent;
-import moze_intel.projecte.api.proxy.IEMCProxy;
-import moze_intel.projecte.api.proxy.ITransmutationProxy;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+import org.jetbrains.annotations.Nullable;
 
 public class KnowledgeService implements IGridService, IGridServiceProvider {
     private static final int TICKS_PER_SYNC = AppliedEConfig.CONFIG.getSyncThrottleInterval();
+    private static final Set<KnowledgeService> SERVICES = Collections.synchronizedSet(new HashSet<>());
 
     private final List<IManagedGridNode> moduleNodes = new ArrayList<>();
     private final Map<UUID, Supplier<IKnowledgeProvider>> providers = new HashMap<>();
     private final EMCStorage storage = new EMCStorage(this);
     private final Set<IPatternDetails> temporaryPatterns = new HashSet<>();
-    private final TeamProjectEHandler.Proxy tpeHandler = new TeamProjectEHandler.Proxy();
 
     final IGrid grid;
     private Set<AEItemKey> knownItemCache;
@@ -55,12 +47,17 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
 
     public KnowledgeService(IGrid grid) {
         this.grid = grid;
-        NeoForge.EVENT_BUS.addListener(EMCRemapEvent.class, event -> updateKnownItems());
-        NeoForge.EVENT_BUS.addListener(PlayerKnowledgeChangeEvent.class, event -> updateKnownItems());
+        SERVICES.add(this);
+    }
+
+    public static void updateKnownItemsForAllGrids() {
+        synchronized (SERVICES) {
+            SERVICES.forEach(KnowledgeService::updateKnownItems);
+        }
     }
 
     @Override
-    public void addNode(IGridNode gridNode, @Nullable CompoundTag savedData) {
+    public void addNode(IGridNode gridNode, @Nullable NBTTagCompound savedData) {
         if (gridNode.getOwner() instanceof EMCModulePart module) {
             knownItemCache = null;
             moduleNodes.add(module.getMainNode());
@@ -80,7 +77,6 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
             knownItemCache = null;
             moduleNodes.remove(module.getMainNode());
             providers.clear();
-            tpeHandler.clear();
 
             for (var mainNode : moduleNodes) {
                 var node = mainNode.getNode();
@@ -97,6 +93,10 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
             moduleNodes.forEach(IStorageProvider::requestUpdate);
             updatePatterns();
         }
+
+        if (moduleNodes.isEmpty()) {
+            SERVICES.remove(this);
+        }
     }
 
     @Override
@@ -106,7 +106,7 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
         }
 
         if (needsSync && ticksSinceLastSync == TICKS_PER_SYNC) {
-            tpeHandler.syncTeamProviders(providers);
+            syncTrackedProviders();
             needsSync = false;
             ticksSinceLastSync = 0;
         }
@@ -117,19 +117,19 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
     }
 
     static Supplier<IKnowledgeProvider> retrieveProvider(UUID playerUUID) {
-        return () -> ITransmutationProxy.INSTANCE.getKnowledgeProviderFor(playerUUID);
+        return () -> ProjectEAPI.getTransmutationProxy().getKnowledgeProviderFor(playerUUID);
     }
 
     List<IKnowledgeProvider> getProviders() {
-        return providers.values().stream().map(Supplier::get).toList();
+        return providers.values().stream().map(Supplier::get).filter(provider -> provider != null).toList();
     }
 
     public Supplier<IKnowledgeProvider> getProviderFor(UUID uuid) {
-        return providers.getOrDefault(uuid, tpeHandler.getProviderFor(uuid));
+        return providers.get(uuid);
     }
 
-    Supplier<IKnowledgeProvider> getProviderFor(Player player) {
-        return getProviderFor(player.getUUID());
+    Supplier<IKnowledgeProvider> getProviderFor(EntityPlayer player) {
+        return getProviderFor(player.getUniqueID());
     }
 
     Supplier<IKnowledgeProvider> getProviderFor(IActionHost host) {
@@ -149,8 +149,8 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
 
     public MEStorage getStorage(IManagedGridNode node) {
         return !moduleNodes.isEmpty() && node.equals(moduleNodes.getFirst()) && node.isActive()
-                ? storage
-                : NullInventory.of();
+            ? storage
+            : NullInventory.of();
     }
 
     public Set<AEItemKey> getKnownItems() {
@@ -159,11 +159,11 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
 
             for (var provider : getProviders()) {
                 for (var item : provider.getKnowledge()) {
-                    if (!IEMCProxy.INSTANCE.hasValue(item)) {
+                    if (!ProjectEAPI.getEMCProxy().hasValue(item)) {
                         continue;
                     }
 
-                    var key = AEItemKey.of(item.createStack());
+                    var key = AEItemKey.of(item);
 
                     if (key != null) {
                         knownItemCache.add(key);
@@ -216,21 +216,40 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
     BigInteger getEmc() {
         var emc = BigInteger.ZERO;
 
-        for (var entry : providers.entrySet()) {
-            if (tpeHandler.notSharingEmc(entry)) {
-                emc = emc.add(entry.getValue().get().getEmc());
+        for (var providerSupplier : providers.values()) {
+            var provider = providerSupplier.get();
+            if (provider != null) {
+                emc = emc.add(BigInteger.valueOf(provider.getEmc()));
             }
         }
 
         return emc;
     }
 
-    public boolean isTrackingPlayer(Player player) {
-        var uuid = player.getUUID();
-        return providers.containsKey(uuid) || tpeHandler.isPlayerInTrackedTeam(uuid);
+    public boolean isTrackingPlayer(EntityPlayer player) {
+        var uuid = player.getUniqueID();
+        return providers.containsKey(uuid);
     }
 
     void syncEmc() {
         needsSync = true;
+    }
+
+    private void syncTrackedProviders() {
+        var server = net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
+
+        if (server == null) {
+            return;
+        }
+
+        providers.forEach((uuid, providerSupplier) -> {
+            var id = ae2.api.features.IPlayerRegistry.getMapping(server).getPlayerId(uuid);
+            var player = ae2.api.features.IPlayerRegistry.getConnected(server, id);
+            var provider = providerSupplier.get();
+
+            if (player != null && provider != null) {
+                provider.sync(player);
+            }
+        });
     }
 }

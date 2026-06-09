@@ -10,15 +10,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.crafting.ICraftingService;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.KeyCounter;
-import appeng.crafting.CraftingCalculation;
-import appeng.crafting.CraftingTreeNode;
-import appeng.crafting.CraftingTreeProcess;
-import appeng.crafting.inv.CraftingSimulationState;
+import ae2.api.crafting.IPatternDetails;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.crafting.ICraftingService;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.KeyCounter;
+import ae2.crafting.CraftingCalculation;
+import ae2.crafting.CraftingTreeNode;
+import ae2.crafting.CraftingTreeProcess;
+import ae2.crafting.inv.CraftingSimulationState;
 
 import gripe._90.appliede.me.service.KnowledgeService;
 import gripe._90.appliede.me.service.TransmutationPattern;
@@ -39,7 +39,7 @@ public abstract class CraftingTreeNodeMixin {
             method = "buildChildPatterns",
             at = @At(
                     value = "NEW",
-                    target = "(Lappeng/api/networking/crafting/ICraftingService;Lappeng/crafting/CraftingCalculation;Lappeng/api/crafting/IPatternDetails;Lappeng/crafting/CraftingTreeNode;)Lappeng/crafting/CraftingTreeProcess;"))
+                    target = "(Lae2/api/networking/crafting/ICraftingService;Lae2/crafting/CraftingCalculation;Lae2/api/crafting/IPatternDetails;Lae2/crafting/CraftingTreeNode;)Lae2/crafting/CraftingTreeProcess;"))
     // spotless:on
     private CraftingTreeProcess recalculatePattern(
             ICraftingService craftingService,
@@ -53,7 +53,7 @@ public abstract class CraftingTreeNodeMixin {
                 details = new TransmutationPattern(item, appliede$requestedAmount, job.hashCode());
             }
 
-            gridNode.getGrid().getService(KnowledgeService.class).addTemporaryPattern(details);
+            gridNode.grid().getService(KnowledgeService.class).addTemporaryPattern(details);
         }
 
         return original.call(craftingService, job, details, node);

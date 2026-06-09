@@ -1,18 +1,20 @@
 package gripe._90.appliede.part;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.Vec3d;
 
-import appeng.api.parts.IPartItem;
-import appeng.api.parts.IPartModel;
-import appeng.items.parts.PartModels;
-import appeng.parts.PartModel;
-import appeng.parts.reporting.AbstractTerminalPart;
+import ae2.api.parts.IPartItem;
+import ae2.api.parts.IPartModel;
+import ae2.container.ISubGui;
+import ae2.items.parts.PartModels;
+import ae2.parts.PartModel;
+import ae2.parts.reporting.AbstractTerminalPart;
 
 import gripe._90.appliede.AppliedE;
+import gripe._90.appliede.gui.AppliedEGuiIds;
+import gripe._90.appliede.gui.AppliedEGuiOpener;
 import gripe._90.appliede.me.misc.TransmutationTerminalHost;
 
 public class TransmutationTerminalPart extends AbstractTerminalPart implements TransmutationTerminalHost {
@@ -44,20 +46,28 @@ public class TransmutationTerminalPart extends AbstractTerminalPart implements T
     }
 
     @Override
-    public void readFromNBT(CompoundTag data, HolderLookup.Provider registries) {
-        super.readFromNBT(data, registries);
+    public void readFromNBT(NBTTagCompound data) {
+        super.readFromNBT(data);
         shiftToTransmute = data.getBoolean("shiftToTransmute");
     }
 
     @Override
-    public void writeToNBT(CompoundTag data, HolderLookup.Provider registries) {
-        super.writeToNBT(data, registries);
-        data.putBoolean("shiftToTransmute", shiftToTransmute);
+    public void writeToNBT(NBTTagCompound data) {
+        super.writeToNBT(data);
+        data.setBoolean("shiftToTransmute", shiftToTransmute);
     }
 
     @Override
-    public MenuType<?> getMenuType(Player player) {
-        return AppliedE.TRANSMUTATION_TERMINAL_MENU.get();
+    public boolean onUseWithoutItem(EntityPlayer player, Vec3d pos) {
+        if (!player.world.isRemote) {
+            AppliedEGuiOpener.openPartGui(player, AppliedEGuiIds.TRANSMUTATION_TERMINAL, this);
+        }
+        return true;
+    }
+
+    @Override
+    public void returnToMainContainer(EntityPlayer player, ISubGui subGui) {
+        AppliedEGuiOpener.openPartGui(player, AppliedEGuiIds.TRANSMUTATION_TERMINAL, this, true);
     }
 
     @Override

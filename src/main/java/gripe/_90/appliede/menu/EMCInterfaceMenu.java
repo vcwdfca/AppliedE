@@ -1,48 +1,54 @@
 package gripe._90.appliede.menu;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-
-import appeng.api.stacks.AEItemKey;
-import appeng.menu.SlotSemantics;
-import appeng.menu.implementations.InterfaceMenu;
-import appeng.menu.implementations.UpgradeableMenu;
-import appeng.menu.slot.AppEngSlot;
-import appeng.menu.slot.FakeSlot;
-
+import ae2.api.stacks.AEItemKey;
+import ae2.container.SlotSemantics;
+import ae2.container.implementations.UpgradeableContainer;
+import ae2.container.slot.AppEngSlot;
+import ae2.container.slot.FakeSlot;
+import gripe._90.appliede.gui.AppliedEGuiIds;
+import gripe._90.appliede.gui.AppliedEGuiOpener;
 import gripe._90.appliede.me.misc.EMCInterfaceLogicHost;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
 
-public class EMCInterfaceMenu extends UpgradeableMenu<EMCInterfaceLogicHost> {
-    private static final String ACTION_OPEN_SET_AMOUNT = InterfaceMenu.ACTION_OPEN_SET_AMOUNT;
+public class EMCInterfaceMenu extends UpgradeableContainer<EMCInterfaceLogicHost> {
+    private static final String ACTION_OPEN_SET_AMOUNT = "openSetAmount";
 
-    public EMCInterfaceMenu(MenuType<?> menuType, int id, Inventory playerInventory, EMCInterfaceLogicHost host) {
-        super(menuType, id, playerInventory, host);
+    public EMCInterfaceMenu(InventoryPlayer playerInventory, EMCInterfaceLogicHost host) {
+        super(playerInventory, host);
         registerClientAction(ACTION_OPEN_SET_AMOUNT, Integer.class, this::openSetAmountMenu);
+    }
 
-        var logic = host.getInterfaceLogic();
-        var config = logic.getConfig().createMenuWrapper();
-        var storage = logic.getStorage().createMenuWrapper();
+    @Override
+    protected void setupInventorySlots() {
+        var logic = getHost().getInterfaceLogic();
+        var config = logic.getConfig().createGuiWrapper();
+        var storage = logic.getStorage().createGuiWrapper();
 
-        for (var i = 0; i < config.size(); i++) {
-            addSlot(new FakeSlot(config, i), SlotSemantics.CONFIG);
+        for (int i = 0; i < config.size(); i++) {
+            addSlot(new FakeSlot(config, i, 0, 0), SlotSemantics.CONFIG);
         }
 
-        for (var i = 0; i < storage.size(); i++) {
-            addSlot(new AppEngSlot(storage, i), SlotSemantics.STORAGE);
+        for (int i = 0; i < storage.size(); i++) {
+            addSlot(new AppEngSlot(storage, i, 0, 0), SlotSemantics.STORAGE);
         }
     }
 
     public void openSetAmountMenu(int configSlot) {
         if (isClientSide()) {
             sendClientAction(ACTION_OPEN_SET_AMOUNT, configSlot);
-        } else {
-            var stack = getHost().getConfig().getStack(configSlot);
+            return;
+        }
 
-            if (stack != null && stack.what() instanceof AEItemKey item) {
-                EMCSetStockAmountMenu.open(
-                        (ServerPlayer) getPlayer(), getLocator(), configSlot, item, (int) stack.amount());
-            }
+        var locator = getLocator();
+        if (!(getPlayer() instanceof EntityPlayerMP player) || locator == null) {
+            return;
+        }
+
+        var stack = getHost().getConfig().getStack(configSlot);
+        if (stack != null && stack.what() instanceof AEItemKey item) {
+            EMCSetStockAmountMenu.remember(player, configSlot, item, (int) stack.amount());
+            AppliedEGuiOpener.openInterfaceHostGui(player, AppliedEGuiIds.EMC_SET_STOCK_AMOUNT, getHost(), false);
         }
     }
 }

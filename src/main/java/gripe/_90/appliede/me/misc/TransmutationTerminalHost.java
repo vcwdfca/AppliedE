@@ -1,7 +1,7 @@
 package gripe._90.appliede.me.misc;
 
-import appeng.api.networking.security.IActionHost;
-import appeng.api.storage.ITerminalHost;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.storage.ITerminalHost;
 
 public interface TransmutationTerminalHost extends ITerminalHost, IActionHost {
     boolean getShiftToTransmute();

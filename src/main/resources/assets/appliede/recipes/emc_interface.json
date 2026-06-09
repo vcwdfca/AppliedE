@@ -1,0 +1,27 @@
+{
+  "type": "forge:ore_shaped",
+  "pattern": [
+    "iti",
+    "a f",
+    "iti"
+  ],
+  "key": {
+    "i": {
+      "type": "forge:ore_dict",
+      "ore": "ingotIron"
+    },
+    "t": {
+      "item": "projecte:item.pe_transmutation_tablet"
+    },
+    "a": {
+      "item": "ae2:annihilation_core"
+    },
+    "f": {
+      "item": "ae2:formation_core"
+    }
+  },
+  "result": {
+    "item": "appliede:emc_interface",
+    "count": 1
+  }
+}

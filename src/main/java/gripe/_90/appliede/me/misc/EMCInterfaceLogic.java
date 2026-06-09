@@ -3,40 +3,36 @@ package gripe._90.appliede.me.misc;
 import java.util.List;
 import java.util.Objects;
 
-import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.config.Actionable;
-import appeng.api.networking.GridFlags;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IManagedGridNode;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
-import appeng.api.storage.MEStorage;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.me.storage.DelegatingMEInventory;
-import appeng.util.ConfigInventory;
-import appeng.util.Platform;
-
-import gripe._90.appliede.AppliedE;
+import ae2.api.config.Actionable;
+import ae2.api.networking.GridFlags;
+import ae2.api.networking.IGrid;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.IManagedGridNode;
+import ae2.api.networking.security.IActionHost;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.ticking.IGridTickable;
+import ae2.api.networking.ticking.TickRateModulation;
+import ae2.api.networking.ticking.TickingRequest;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.GenericStack;
+import ae2.api.storage.MEStorage;
+import ae2.api.upgrades.IUpgradeInventory;
+import ae2.api.upgrades.IUpgradeableObject;
+import ae2.api.upgrades.UpgradeInventories;
+import ae2.me.storage.DelegatingMEInventory;
+import ae2.util.ConfigInventory;
+import ae2.util.Platform;
+import gripe._90.appliede.AppliedEItems;
 import gripe._90.appliede.me.service.EMCStorage;
 import gripe._90.appliede.me.service.KnowledgeService;
-
-import moze_intel.projecte.api.proxy.IEMCProxy;
+import moze_intel.projecte.api.ProjectEAPI;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
+import org.jetbrains.annotations.Nullable;
 
 public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeableObject {
     protected final EMCInterfaceLogicHost host;
@@ -62,17 +58,17 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
     public EMCInterfaceLogic(IManagedGridNode node, EMCInterfaceLogicHost host, Item is, int slots) {
         this.host = host;
         mainNode = node.setFlags(GridFlags.REQUIRE_CHANNEL)
-                .addService(IGridTickable.class, this)
-                .setIdlePowerUsage(10);
+            .addService(IGridTickable.class, this)
+            .setIdlePowerUsage(10);
 
         config = ConfigInventory.configStacks(slots)
-                .slotFilter(what -> AEItemKey.is(what))
-                .changeListener(this::onConfigRowChanged)
-                .build();
+            .slotFilter((AEKey what) -> AEItemKey.is(what))
+            .changeListener(this::onConfigRowChanged)
+            .build();
         storage = ConfigInventory.storage(slots)
-                .slotFilter(this::storageFilter)
-                .changeListener(this::onStorageChanged)
-                .build();
+            .slotFilter(this::storageFilter)
+            .changeListener(this::onStorageChanged)
+            .build();
         upgrades = UpgradeInventories.forMachine(is, 1, host::saveChanges);
 
         localInvHandler = new DelegatingMEInventory(storage);
@@ -108,28 +104,29 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
         var node = mainNode.getNode();
 
         if (grid == null || node == null) {
-            // client-side, allow everything in order for items to actually display
             return true;
         }
 
         var knowledge = grid.getService(KnowledgeService.class);
+        var providerSupplier = knowledge.getProviderFor(node.getOwningPlayerProfileId());
         return knowledge.getKnownItems().contains(item)
-                || (isUpgradedWith(AppliedE.LEARNING_CARD)
-                        && IEMCProxy.INSTANCE.hasValue(item.toStack())
-                        && knowledge.getProviderFor(node.getOwningPlayerProfileId()) != null);
+            || (isUpgradedWith(AppliedEItems.LEARNING_CARD)
+            && ProjectEAPI.getEMCProxy().hasValue(item.toStack())
+            && providerSupplier != null
+            && providerSupplier.get() != null);
     }
 
-    public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
-        config.readFromChildTag(tag, "config", registries);
-        storage.readFromChildTag(tag, "storage", registries);
-        upgrades.readFromNBT(tag, "upgrades", registries);
+    public void readFromNBT(NBTTagCompound tag) {
+        config.readFromChildTag(tag, "config");
+        storage.readFromChildTag(tag, "storage");
+        upgrades.readFromNBT(tag, "upgrades");
         readConfig();
     }
 
-    public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
-        config.writeToChildTag(tag, "config", registries);
-        storage.writeToChildTag(tag, "storage", registries);
-        upgrades.writeToNBT(tag, "upgrades", registries);
+    public void writeToNBT(NBTTagCompound tag) {
+        config.writeToChildTag(tag, "config");
+        storage.writeToChildTag(tag, "storage");
+        upgrades.writeToNBT(tag, "upgrades");
     }
 
     @Nullable
@@ -164,8 +161,8 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
         }
 
         return hasWorkToDo()
-                ? couldDoWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER
-                : TickRateModulation.SLEEP;
+            ? couldDoWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER
+            : TickRateModulation.SLEEP;
     }
 
     private boolean hasWorkToDo() {
@@ -209,8 +206,8 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
                 plannedWork[slot] = req;
             } else if (req.what().equals(stored.what())) {
                 plannedWork[slot] = req.amount() != stored.amount()
-                        ? new GenericStack(req.what(), req.amount() - stored.amount())
-                        : null;
+                    ? new GenericStack(req.what(), req.amount() - stored.amount())
+                    : null;
             } else {
                 plannedWork[slot] = new GenericStack(stored.what(), -stored.amount());
             }
@@ -239,8 +236,8 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
             }
 
             var depositedItems = grid.getService(KnowledgeService.class)
-                    .getStorage()
-                    .insertItem(item, amount, Actionable.MODULATE, source, isUpgradedWith(AppliedE.LEARNING_CARD));
+                .getStorage()
+                .insertItem(item, amount, Actionable.MODULATE, source, isUpgradedWith(AppliedEItems.LEARNING_CARD));
 
             if (depositedItems > 0) {
                 storage.extract(slot, what, depositedItems, Actionable.MODULATE);
@@ -250,7 +247,7 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
 
         if (amount > 0) {
             return storage.insert(slot, what, amount, Actionable.SIMULATE) != amount
-                    || acquireFromNetwork(grid, slot, what, amount);
+                || acquireFromNetwork(grid, slot, what, amount);
         }
 
         return false;
@@ -262,8 +259,8 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
         }
 
         var acquiredItems = grid.getService(KnowledgeService.class)
-                .getStorage()
-                .extractItem(item, amount, Actionable.MODULATE, source, true);
+            .getStorage()
+            .extractItem(item, amount, Actionable.MODULATE, source, true);
 
         if (acquiredItems > 0) {
             var inserted = storage.insert(slot, what, acquiredItems, Actionable.MODULATE);
@@ -301,17 +298,17 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
             }
         });
 
-        var be = host.getBlockEntity();
+        var tile = host.getTileEntity();
 
-        if (be != null && be.getLevel() != null) {
-            Platform.notifyBlocksOfNeighbors(be.getLevel(), be.getBlockPos());
+        if (tile != null && tile.getWorld() != null) {
+            Platform.notifyBlocksOfNeighbors(tile.getWorld(), tile.getPos());
         }
     }
 
     public void gridChanged() {
         emcStorage = new WrappedEMCStorage(Objects.requireNonNull(mainNode.getGrid())
-                .getService(KnowledgeService.class)
-                .getStorage());
+            .getService(KnowledgeService.class)
+            .getStorage());
         notifyNeighbours();
     }
 
@@ -320,8 +317,8 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
             var stack = storage.getStack(i);
 
             if (stack != null) {
-                var be = host.getBlockEntity();
-                stack.what().addDrops(stack.amount(), drops, be.getLevel(), be.getBlockPos());
+                var tile = host.getTileEntity();
+                stack.what().addDrops(stack.amount(), drops, tile.getWorld(), tile.getPos());
             }
         }
 
@@ -347,13 +344,13 @@ public class EMCInterfaceLogic implements IActionHost, IGridTickable, IUpgradeab
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             return what instanceof AEItemKey item && mainNode.isActive()
-                    ? storage.insertItem(item, amount, mode, source, isUpgradedWith(AppliedE.LEARNING_CARD))
-                    : 0;
+                ? storage.insertItem(item, amount, mode, source, isUpgradedWith(AppliedEItems.LEARNING_CARD))
+                : 0;
         }
 
         @Override
-        public Component getDescription() {
-            return AppliedE.EMC_INTERFACE.get().getName();
+        public ITextComponent getDescription() {
+            return new TextComponentTranslation(AppliedEItems.EMC_INTERFACE.getTranslationKey() + ".name");
         }
     }
 }

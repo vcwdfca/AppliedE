@@ -3,37 +3,36 @@ package gripe._90.appliede.part;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.inventory.MenuType;
-import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.items.IItemHandler;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.parts.IPartCollisionHelper;
-import appeng.api.parts.IPartItem;
-import appeng.api.parts.IPartModel;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.api.storage.StorageHelper;
-import appeng.core.AppEng;
-import appeng.core.definitions.AEItems;
-import appeng.core.settings.TickRates;
-import appeng.items.parts.PartModels;
-import appeng.me.storage.ExternalStorageFacade;
-import appeng.parts.PartModel;
-import appeng.parts.automation.IOBusPart;
+import ae2.api.config.Actionable;
+import ae2.api.networking.IGrid;
+import ae2.api.parts.IPartCollisionHelper;
+import ae2.api.parts.IPartItem;
+import ae2.api.parts.IPartModel;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKeyType;
+import ae2.api.storage.StorageHelper;
+import ae2.core.AppEng;
+import ae2.core.definitions.AEItems;
+import ae2.core.settings.TickRates;
+import ae2.items.parts.PartModels;
+import ae2.me.storage.ExternalStorageFacade;
+import ae2.container.GuiIds;
+import ae2.parts.PartModel;
+import ae2.parts.automation.IOBusPart;
 
 import gripe._90.appliede.AppliedE;
+import gripe._90.appliede.AppliedEItems;
 import gripe._90.appliede.me.key.EMCKey;
 import gripe._90.appliede.me.key.EMCKeyType;
 import gripe._90.appliede.me.service.KnowledgeService;
 
-import moze_intel.projecte.api.capabilities.PECapabilities;
-import moze_intel.projecte.api.capabilities.block_entity.IEmcStorage;
+import moze_intel.projecte.api.tile.IEmcProvider;
 
 public class EMCImportBusPart extends IOBusPart {
     private static final ResourceLocation MODEL_BASE = AppliedE.id("part/emc_import_bus");
@@ -48,49 +47,42 @@ public class EMCImportBusPart extends IOBusPart {
     private static final PartModel MODELS_HAS_CHANNEL =
             new PartModel(MODEL_BASE, AppEng.makeId("part/import_bus_has_channel"));
 
-    private BlockCapabilityCache<IItemHandler, Direction> itemCache;
-    private BlockCapabilityCache<IEmcStorage, Direction> emcCache;
-
     public EMCImportBusPart(IPartItem<?> partItem) {
         super(TickRates.ImportBus, Set.of(AEKeyType.items(), EMCKeyType.TYPE), partItem);
     }
 
     @Override
-    protected MenuType<?> getMenuType() {
-        return AppliedE.EMC_IMPORT_BUS_MENU.get();
+    protected GuiIds.GuiKey getGuiKey() {
+        return GuiIds.GuiKey.IMPORT_BUS;
     }
 
     @Override
     protected boolean doBusWork(IGrid grid) {
-        if (itemCache == null || emcCache == null) {
-            var adjacentPos = getHost().getBlockEntity().getBlockPos().relative(getSide());
-            var facing = getSide().getOpposite();
-            var level = (ServerLevel) getLevel();
-            itemCache = BlockCapabilityCache.create(Capabilities.ItemHandler.BLOCK, level, adjacentPos, facing);
-            emcCache = BlockCapabilityCache.create(PECapabilities.EMC_STORAGE_CAPABILITY, level, adjacentPos, facing);
-        }
+        TileEntity adjacent = getAdjacentTile();
+        EnumFacing facing = getSide().getOpposite();
 
         var doneWork = false;
 
         var networkEmc = grid.getService(KnowledgeService.class).getStorage();
         var remaining = new AtomicInteger(getOperationsPerTick());
 
-        if (emcCache.getCapability() instanceof IEmcStorage handler) {
+        if (adjacent instanceof IEmcProvider provider) {
             if (getFilter().isEmpty() || getFilter().isListed(EMCKey.BASE) != isUpgradedWith(AEItems.INVERTER_CARD)) {
                 var emcRemaining = remaining.get() * EMCKeyType.TYPE.getAmountPerOperation();
                 var inserted = StorageHelper.poweredInsert(
                         grid.getEnergyService(),
                         grid.getStorageService().getInventory(),
                         EMCKey.BASE,
-                        Math.min(emcRemaining, handler.getStoredEmc()),
+                        Math.min(emcRemaining, provider.getStoredEmc()),
                         source,
                         Actionable.MODULATE);
-                handler.extractEmc(inserted, IEmcStorage.EmcAction.EXECUTE);
+                provider.provideEMC(facing, inserted);
                 remaining.addAndGet((int) -Math.max(1, inserted / EMCKeyType.TYPE.getAmountPerOperation()));
             }
         }
 
-        if (itemCache.getCapability() instanceof IItemHandler handler) {
+        IItemHandler handler = getItemHandler(adjacent, facing);
+        if (handler != null) {
             var adjacentStorage = ExternalStorageFacade.of(handler);
 
             for (var slot = 0; slot < handler.getSlots() && remaining.get() > 0; slot++) {
@@ -107,7 +99,7 @@ public class EMCImportBusPart extends IOBusPart {
                 var amount = adjacentStorage.extract(item, remaining.get(), Actionable.SIMULATE, source);
 
                 if (amount > 0) {
-                    var mayLearn = isUpgradedWith(AppliedE.LEARNING_CARD);
+                    var mayLearn = isLearningCardInstalled();
                     amount = networkEmc.insertItem(item, amount, Actionable.MODULATE, source, mayLearn);
                     adjacentStorage.extract(item, amount, Actionable.MODULATE, source);
                     remaining.addAndGet(-(int) amount);
@@ -120,6 +112,22 @@ public class EMCImportBusPart extends IOBusPart {
         }
 
         return doneWork;
+    }
+
+    private TileEntity getAdjacentTile() {
+        var adjacentPos = getHost().getTileEntity().getPos().offset(getSide());
+        return getLevel().getTileEntity(adjacentPos);
+    }
+
+    private IItemHandler getItemHandler(TileEntity adjacent, EnumFacing facing) {
+        if (adjacent == null || !adjacent.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, facing)) {
+            return null;
+        }
+        return adjacent.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, facing);
+    }
+
+    private boolean isLearningCardInstalled() {
+        return getUpgrades().isInstalled(AppliedEItems.LEARNING_CARD);
     }
 
     @Override

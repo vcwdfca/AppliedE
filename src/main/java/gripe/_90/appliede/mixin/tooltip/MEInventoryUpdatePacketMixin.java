@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.PacketBuffer;
 
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKey;
-import appeng.core.network.clientbound.MEInventoryUpdatePacket;
-import appeng.menu.me.common.GridInventoryEntry;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEKey;
+import ae2.container.me.common.GridInventoryEntry;
+import ae2.core.network.clientbound.MEInventoryUpdatePacket;
 
 import gripe._90.appliede.me.key.EMCKey;
 import gripe._90.appliede.me.reporting.GridInventoryEMCEntry;
@@ -28,14 +28,14 @@ import gripe._90.appliede.me.reporting.TransmutablePacketBuilder;
 public abstract class MEInventoryUpdatePacketMixin {
     @ModifyReturnValue(method = "readEntry", at = @At("RETURN"))
     private static GridInventoryEntry readTransmutable(
-            GridInventoryEntry original, @Local(argsOnly = true) RegistryFriendlyByteBuf buffer) {
-        ((GridInventoryEMCEntry) original).appliede$setTransmutable(buffer.readBoolean());
+            GridInventoryEntry original, @Local(argsOnly = true) PacketBuffer buffer) {
+        ((GridInventoryEMCEntry) (Object) original).appliede$setTransmutable(buffer.readBoolean());
         return original;
     }
 
     @Inject(method = "writeEntry", at = @At(value = "RETURN"))
-    private static void writeTransmutable(RegistryFriendlyByteBuf buffer, GridInventoryEntry entry, CallbackInfo ci) {
-        buffer.writeBoolean(((GridInventoryEMCEntry) entry).appliede$isTransmutable());
+    private static void writeTransmutable(PacketBuffer buffer, GridInventoryEntry entry, CallbackInfo ci) {
+        buffer.writeBoolean(((GridInventoryEMCEntry) (Object) entry).appliede$isTransmutable());
     }
 
     @SuppressWarnings("unused")
@@ -54,11 +54,11 @@ public abstract class MEInventoryUpdatePacketMixin {
                 method = "addChanges",
                 at = @At(
                         value = "NEW",
-                        target = "(JLappeng/api/stacks/AEKey;JJZ)Lappeng/menu/me/common/GridInventoryEntry;",
+                        target = "(JLae2/api/stacks/AEKey;JJZ)Lae2/container/me/common/GridInventoryEntry;",
                         ordinal = 1))
         // spotless:on
         private GridInventoryEntry includeTransmutables(GridInventoryEntry original, @Local(ordinal = 0) AEKey key) {
-            ((GridInventoryEMCEntry) original)
+            ((GridInventoryEMCEntry) (Object) original)
                     .appliede$setTransmutable(key instanceof AEItemKey item && appliede$transmutables.contains(item));
             return original;
         }

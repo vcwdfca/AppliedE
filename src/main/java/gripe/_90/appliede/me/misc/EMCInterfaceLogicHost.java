@@ -1,27 +1,21 @@
 package gripe._90.appliede.me.misc;
 
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import ae2.api.storage.ISubGuiHost;
+import ae2.api.upgrades.IUpgradeInventory;
+import ae2.api.upgrades.IUpgradeableObject;
+import ae2.container.ISubGui;
+import ae2.helpers.IConfigInvHost;
+import ae2.helpers.externalstorage.GenericStackInv;
+import gripe._90.appliede.gui.AppliedEGuiIds;
+import gripe._90.appliede.gui.AppliedEGuiOpener;
+import ae2.parts.AEBasePart;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.tileentity.TileEntity;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridNodeListener;
-import appeng.api.storage.ISubMenuHost;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.helpers.IConfigInvHost;
-import appeng.helpers.externalstorage.GenericStackInv;
-import appeng.menu.ISubMenu;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuHostLocator;
-
-import gripe._90.appliede.AppliedE;
-
-public interface EMCInterfaceLogicHost extends IConfigInvHost, ISubMenuHost, IUpgradeableObject {
-    BlockEntity getBlockEntity();
+public interface EMCInterfaceLogicHost extends IConfigInvHost, ISubGuiHost, IUpgradeableObject {
+    TileEntity getTileEntity();
 
     void saveChanges();
-
-    void onMainNodeStateChanged(IGridNodeListener.State reason);
 
     EMCInterfaceLogic getInterfaceLogic();
 
@@ -30,34 +24,17 @@ public interface EMCInterfaceLogicHost extends IConfigInvHost, ISubMenuHost, IUp
         return getInterfaceLogic().getConfig();
     }
 
+    default GenericStackInv getStorage() {
+        return getInterfaceLogic().getStorage();
+    }
+
     @Override
     default IUpgradeInventory getUpgrades() {
         return getInterfaceLogic().getUpgrades();
     }
 
-    default void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(AppliedE.EMC_INTERFACE_MENU.get(), player, locator);
-    }
-
     @Override
-    default void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(AppliedE.EMC_INTERFACE_MENU.get(), player, subMenu.getLocator());
+    default void returnToMainContainer(EntityPlayer player, ISubGui subGui) {
+        AppliedEGuiOpener.openInterfaceHostGui(player, AppliedEGuiIds.EMC_INTERFACE, this, true);
     }
-
-    IGridNodeListener<EMCInterfaceLogicHost> NODE_LISTENER = new IGridNodeListener<>() {
-        @Override
-        public void onSaveChanges(EMCInterfaceLogicHost host, IGridNode node) {
-            host.saveChanges();
-        }
-
-        @Override
-        public void onStateChanged(EMCInterfaceLogicHost host, IGridNode node, State state) {
-            host.onMainNodeStateChanged(state);
-        }
-
-        @Override
-        public void onGridChanged(EMCInterfaceLogicHost host, IGridNode node) {
-            host.getInterfaceLogic().gridChanged();
-        }
-    };
 }

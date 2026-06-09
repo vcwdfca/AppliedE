@@ -1,0 +1,22 @@
+{
+  "type": "forge:ore_shapeless",
+  "ingredients": [
+    {
+      "item": "ae2:terminal"
+    },
+    {
+      "item": "projecte:item.pe_transmutation_tablet"
+    },
+    {
+      "item": "ae2:singularity"
+    },
+    {
+      "item": "projecte:matter_block",
+      "data": 1
+    }
+  ],
+  "result": {
+    "item": "appliede:transmutation_terminal",
+    "count": 1
+  }
+}

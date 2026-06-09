@@ -1,0 +1,28 @@
+{
+  "type": "forge:ore_shaped",
+  "pattern": [
+    "drd",
+    "sts",
+    "drd"
+  ],
+  "key": {
+    "d": {
+      "item": "projecte:matter_block",
+      "data": 0
+    },
+    "r": {
+      "item": "projecte:matter_block",
+      "data": 1
+    },
+    "s": {
+      "item": "ae2:singularity"
+    },
+    "t": {
+      "item": "projecte:item.pe_transmutation_tablet"
+    }
+  },
+  "result": {
+    "item": "appliede:emc_module",
+    "count": 1
+  }
+}

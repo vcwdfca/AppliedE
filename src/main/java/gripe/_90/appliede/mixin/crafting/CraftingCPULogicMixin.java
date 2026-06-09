@@ -1,6 +1,7 @@
 package gripe._90.appliede.mixin.crafting;
 
 import java.util.Map;
+import java.util.function.Function;
 
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -13,13 +14,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import net.minecraft.world.level.Level;
+import net.minecraft.world.World;
 
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.networking.energy.IEnergyService;
-import appeng.crafting.execution.CraftingCpuLogic;
-import appeng.me.cluster.implementations.CraftingCPUCluster;
-import appeng.me.service.CraftingService;
+import ae2.api.crafting.IPatternDetails;
+import ae2.api.networking.crafting.ICraftingProvider;
+import ae2.api.networking.energy.IEnergyService;
+import ae2.crafting.execution.CraftingCpuLogic;
+import ae2.me.cluster.implementations.CraftingCPUCluster;
+import ae2.me.service.CraftingService;
 
 import gripe._90.appliede.me.service.KnowledgeService;
 import gripe._90.appliede.me.service.TransmutationPattern;
@@ -30,12 +32,14 @@ public abstract class CraftingCPULogicMixin {
     @Final
     CraftingCPUCluster cluster;
 
-    @Inject(method = "executeCrafting", at = @At(value = "INVOKE", target = "Ljava/util/Iterator;remove()V"))
+    @Inject(
+            method = "executeCraftingWithProviderLookup",
+            at = @At(value = "INVOKE", target = "Ljava/util/Iterator;remove()V", ordinal = 1))
     private void removeOnFinishStep(
             int maxPatterns,
-            CraftingService craftingService,
             IEnergyService energyService,
-            Level level,
+            World level,
+            Function<IPatternDetails, Iterable<ICraftingProvider>> providersForPattern,
             CallbackInfoReturnable<Integer> cir,
             @Local Map.Entry<IPatternDetails, ?> task) {
         appliede$removeTemporaryPattern(task.getKey());

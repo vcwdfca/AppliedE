@@ -1,32 +1,26 @@
 package gripe._90.appliede.menu;
 
-import org.jetbrains.annotations.NotNull;
-
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.config.Actionable;
-import appeng.api.inventories.InternalInventory;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.stacks.AEItemKey;
-import appeng.helpers.InventoryAction;
-import appeng.menu.SlotSemantic;
-import appeng.menu.SlotSemantics;
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.me.common.MEStorageMenu;
-import appeng.menu.slot.FakeSlot;
-
-import gripe._90.appliede.AppliedE;
+import ae2.api.config.Actionable;
+import ae2.api.inventories.InternalInventory;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.stacks.AEItemKey;
+import ae2.container.GuiIds;
+import ae2.container.SlotSemantic;
+import ae2.container.SlotSemantics;
+import ae2.container.guisync.GuiSync;
+import ae2.container.me.common.ContainerMEStorage;
+import ae2.container.slot.FakeSlot;
+import ae2.helpers.InventoryAction;
 import gripe._90.appliede.me.misc.TransmutationTerminalHost;
 import gripe._90.appliede.me.service.KnowledgeService;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
 
-import moze_intel.projecte.api.ItemInfo;
-
-public class TransmutationTerminalMenu extends MEStorageMenu {
+public class TransmutationTerminalMenu extends ContainerMEStorage {
     protected static final SlotSemantic TRANSMUTE = SlotSemantics.register("APPLIEDE_TRANSMUTE", false);
     protected static final SlotSemantic UNLEARN = SlotSemantics.register("APPLIEDE_UNLEARN", false);
 
@@ -35,8 +29,8 @@ public class TransmutationTerminalMenu extends MEStorageMenu {
     private static final String ACTION_HIDE_UNLEARNED = "hideUnlearnedText";
 
     private final TransmutationTerminalHost host;
-    private final Slot transmuteSlot = new FakeSlot(InternalInventory.empty(), 0);
-    private final Slot unlearnSlot = new FakeSlot(InternalInventory.empty(), 0);
+    private final Slot transmuteSlot = new FakeSlot(InternalInventory.empty(), 0, 0, 0);
+    private final Slot unlearnSlot = new FakeSlot(InternalInventory.empty(), 0, 0, 0);
 
     @GuiSync(1)
     public boolean shiftToTransmute;
@@ -47,13 +41,17 @@ public class TransmutationTerminalMenu extends MEStorageMenu {
     @GuiSync(3)
     public int unlearnedLabelTicks;
 
-    public TransmutationTerminalMenu(int id, Inventory ip, TransmutationTerminalHost host) {
-        this(AppliedE.TRANSMUTATION_TERMINAL_MENU.get(), id, ip, host, true);
+    public TransmutationTerminalMenu(InventoryPlayer ip, TransmutationTerminalHost host) {
+        this(GuiIds.GuiKey.ME_STORAGE_TERMINAL, ip, host, true);
     }
 
-    public TransmutationTerminalMenu(
-            MenuType<?> menuType, int id, Inventory ip, TransmutationTerminalHost host, boolean bindInventory) {
-        super(menuType, id, ip, host, bindInventory);
+    protected TransmutationTerminalMenu(
+        GuiIds.GuiKey guiKey,
+        InventoryPlayer ip,
+        TransmutationTerminalHost host,
+        boolean bindInventory
+    ) {
+        super(guiKey, ip, host, bindInventory);
         this.host = host;
         registerClientAction(ACTION_SET_SHIFT, Boolean.class, host::setShiftToTransmute);
         registerClientAction(ACTION_HIDE_LEARNED, () -> learnedLabelTicks--);
@@ -62,66 +60,79 @@ public class TransmutationTerminalMenu extends MEStorageMenu {
         addSlot(unlearnSlot, UNLEARN);
     }
 
-    @Override
-    public void doAction(ServerPlayer player, InventoryAction action, int slot, long id) {
-        super.doAction(player, action, slot, id);
-        var s = getSlot(slot);
+    public static TransmutationTerminalMenu wireless(InventoryPlayer ip, TransmutationTerminalHost host) {
+        return new TransmutationTerminalMenu(GuiIds.GuiKey.WIRELESS_TERMINAL, ip, host, true);
+    }
 
-        if (s.equals(transmuteSlot) && !getCarried().isEmpty()) {
-            var transmuted = transmuteItem(getCarried(), action == InventoryAction.SPLIT_OR_PLACE_SINGLE, player);
-            var reduced = getCarried().copy();
-            reduced.setCount(reduced.getCount() - transmuted);
-            setCarried(reduced.getCount() <= 0 ? ItemStack.EMPTY : reduced);
+    @Override
+    public void doAction(EntityPlayerMP player, InventoryAction action, int slot, long id) {
+        super.doAction(player, action, slot, id);
+
+        if (slot < 0 || slot >= inventorySlots.size()) {
+            return;
         }
 
-        if (s.equals(unlearnSlot) && !getCarried().isEmpty()) {
-            var node = host.getActionableNode();
+        var targetSlot = getSlot(slot);
+        if (targetSlot == transmuteSlot && !getCarried().isEmpty()) {
+            int transmuted = transmuteItem(getCarried(), action == InventoryAction.SPLIT_OR_PLACE_SINGLE, player);
+            ItemStack reduced = getCarried().copy();
+            reduced.shrink(transmuted);
+            setCarried(reduced.isEmpty() ? ItemStack.EMPTY : reduced);
+        }
 
-            if (node != null) {
-                var knowledge = node.getGrid().getService(KnowledgeService.class);
+        if (targetSlot == unlearnSlot && !getCarried().isEmpty()) {
+            IGridNode node = host.getActionableNode();
+            if (node == null) {
+                return;
+            }
 
-                if (knowledge.isTrackingPlayer(player)) {
-                    var provider = knowledge.getProviderFor(player.getUUID()).get();
+            KnowledgeService knowledge = node.grid().getService(KnowledgeService.class);
+            if (!knowledge.isTrackingPlayer(player)) {
+                return;
+            }
 
-                    if (provider.hasKnowledge(getCarried())) {
-                        provider.removeKnowledge(getCarried());
-                        provider.syncKnowledgeChange(player, ItemInfo.fromStack(getCarried()), false);
-                        unlearnedLabelTicks = 300;
-                        learnedLabelTicks = 0;
-                        broadcastChanges();
-                    }
-                }
+            var providerSupplier = knowledge.getProviderFor(player.getUniqueID());
+            var provider = providerSupplier != null ? providerSupplier.get() : null;
+            if (provider != null && provider.hasKnowledge(getCarried())) {
+                provider.removeKnowledge(getCarried());
+                provider.sync(player);
+                unlearnedLabelTicks = 300;
+                learnedLabelTicks = 0;
+                broadcastChanges();
             }
         }
     }
 
-    private int transmuteItem(ItemStack stack, boolean singleItem, Player player) {
-        if (!stack.isEmpty()) {
-            var node = host.getActionableNode();
-
-            if (node == null) {
-                return 0;
-            }
-
-            var knowledge = node.getGrid().getService(KnowledgeService.class);
-
-            if (!knowledge.isTrackingPlayer(player)) {
-                return 0;
-            }
-
-            return (int) knowledge
-                    .getStorage()
-                    .insertItem(
-                            AEItemKey.of(stack),
-                            singleItem ? 1 : stack.getCount(),
-                            Actionable.MODULATE,
-                            IActionSource.ofPlayer(player),
-                            true,
-                            true,
-                            this::showLearned);
+    private int transmuteItem(ItemStack stack, boolean singleItem, EntityPlayer player) {
+        if (stack.isEmpty()) {
+            return 0;
         }
 
-        return 0;
+        IGridNode node = host.getActionableNode();
+        if (node == null) {
+            return 0;
+        }
+
+        KnowledgeService knowledge = node.grid().getService(KnowledgeService.class);
+        if (!knowledge.isTrackingPlayer(player)) {
+            return 0;
+        }
+
+        AEItemKey key = AEItemKey.of(stack);
+        if (key == null) {
+            return 0;
+        }
+
+        long inserted = knowledge.getStorage().insertItem(
+            key,
+            singleItem ? 1 : stack.getCount(),
+            Actionable.MODULATE,
+            IActionSource.ofPlayer(player, host),
+            true,
+            true,
+            this::showLearned
+        );
+        return (int) inserted;
     }
 
     public void setShiftToTransmute(boolean transmute) {
@@ -151,20 +162,21 @@ public class TransmutationTerminalMenu extends MEStorageMenu {
         }
     }
 
-    @NotNull
     @Override
-    public ItemStack quickMoveStack(Player player, int idx) {
-        if (shiftToTransmute) {
-            var stack = slots.get(idx).getItem();
-
-            var remaining = stack.copy();
-            remaining.setCount(remaining.getCount() - transmuteItem(stack, false, player));
-            slots.get(idx).set(remaining.getCount() <= 0 ? ItemStack.EMPTY : remaining);
-
+    public ItemStack transferStackInSlot(EntityPlayer player, int idx) {
+        if (shiftToTransmute && idx >= 0 && idx < inventorySlots.size()) {
+            Slot slot = inventorySlots.get(idx);
+            ItemStack stack = slot.getStack();
+            if (!stack.isEmpty()) {
+                int transmuted = transmuteItem(stack, false, player);
+                ItemStack remaining = stack.copy();
+                remaining.shrink(transmuted);
+                slot.putStack(remaining.isEmpty() ? ItemStack.EMPTY : remaining);
+            }
             return ItemStack.EMPTY;
         }
 
-        return super.quickMoveStack(player, idx);
+        return super.transferStackInSlot(player, idx);
     }
 
     @Override

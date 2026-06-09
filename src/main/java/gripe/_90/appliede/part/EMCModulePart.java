@@ -5,40 +5,40 @@ import java.util.List;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.Vec3d;
 
-import appeng.api.config.Actionable;
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.networking.GridFlags;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridNodeListener;
-import appeng.api.networking.crafting.ICraftingProvider;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.parts.IPartCollisionHelper;
-import appeng.api.parts.IPartItem;
-import appeng.api.parts.IPartModel;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.KeyCounter;
-import appeng.api.storage.IStorageMounts;
-import appeng.api.storage.IStorageProvider;
-import appeng.helpers.IPriorityHost;
-import appeng.items.parts.PartModels;
-import appeng.menu.ISubMenu;
-import appeng.menu.MenuOpener;
-import appeng.menu.implementations.PriorityMenu;
-import appeng.menu.locator.MenuLocators;
-import appeng.parts.AEBasePart;
-import appeng.parts.PartModel;
+import ae2.api.config.Actionable;
+import ae2.api.crafting.IPatternDetails;
+import ae2.api.networking.GridFlags;
+import ae2.api.networking.IGridNode;
+import ae2.api.networking.IGridNodeListener;
+import ae2.api.networking.crafting.ICraftingProvider;
+import ae2.api.networking.security.IActionSource;
+import ae2.api.networking.ticking.IGridTickable;
+import ae2.api.networking.ticking.TickRateModulation;
+import ae2.api.networking.ticking.TickingRequest;
+import ae2.api.parts.IPartCollisionHelper;
+import ae2.api.parts.IPartItem;
+import ae2.api.parts.IPartModel;
+import ae2.api.stacks.AEKey;
+import ae2.api.stacks.GenericStack;
+import ae2.api.stacks.KeyCounter;
+import ae2.api.storage.IStorageMounts;
+import ae2.api.storage.IStorageProvider;
+import ae2.container.GuiIds;
+import ae2.container.ISubGui;
+import ae2.core.gui.GuiOpener;
+import ae2.helpers.IPriorityHost;
+import ae2.items.parts.PartModels;
+import ae2.parts.AEBasePart;
+import ae2.parts.PartModel;
 
 import gripe._90.appliede.AppliedE;
 import gripe._90.appliede.AppliedEConfig;
+import gripe._90.appliede.AppliedEItems;
 import gripe._90.appliede.me.service.KnowledgeService;
 import gripe._90.appliede.me.service.TransmutationPattern;
 
@@ -62,15 +62,15 @@ public final class EMCModulePart extends AEBasePart
     }
 
     @Override
-    public void writeToNBT(CompoundTag data, HolderLookup.Provider registries) {
-        super.writeToNBT(data, registries);
-        data.putInt("priority", priority);
+    public void writeToNBT(NBTTagCompound data) {
+        super.writeToNBT(data);
+        data.setInteger("priority", priority);
     }
 
     @Override
-    public void readFromNBT(CompoundTag data, HolderLookup.Provider registries) {
-        super.readFromNBT(data, registries);
-        priority = data.getInt("priority");
+    public void readFromNBT(NBTTagCompound data) {
+        super.readFromNBT(data);
+        priority = data.getInteger("priority");
     }
 
     @Override
@@ -101,16 +101,26 @@ public final class EMCModulePart extends AEBasePart
     }
 
     @Override
-    public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+    public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, int multiplier) {
         if (!getMainNode().isActive() || !(patternDetails instanceof TransmutationPattern pattern)) {
             return false;
         }
 
-        var output = pattern.getPrimaryOutput();
-        outputs.merge(output.what(), output.amount(), Long::sum);
+        GenericStack output = pattern.getPrimaryOutput();
+        outputs.merge(output.what(), output.amount() * multiplier, Long::sum);
 
         getMainNode().ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
         return true;
+    }
+
+    @Override
+    public boolean canMergePatternPush(IPatternDetails patternDetails) {
+        return patternDetails instanceof TransmutationPattern;
+    }
+
+    @Override
+    public int getMaxPatternPushMultiplier(IPatternDetails patternDetails, int maxMultiplier) {
+        return patternDetails instanceof TransmutationPattern ? maxMultiplier : 0;
     }
 
     @Override
@@ -125,7 +135,7 @@ public final class EMCModulePart extends AEBasePart
 
     @Override
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
-        var storage = node.getGrid().getStorageService().getInventory();
+        var storage = node.grid().getStorageService().getInventory();
 
         for (var output : new Object2LongOpenHashMap<>(outputs).object2LongEntrySet()) {
             var what = output.getKey();
@@ -154,9 +164,9 @@ public final class EMCModulePart extends AEBasePart
     }
 
     @Override
-    public boolean onUseWithoutItem(Player player, Vec3 pos) {
-        if (!player.getCommandSenderWorld().isClientSide()) {
-            MenuOpener.open(PriorityMenu.TYPE, player, MenuLocators.forPart(this));
+    public boolean onUseWithoutItem(EntityPlayer player, Vec3d pos) {
+        if (!isClientSide()) {
+            GuiOpener.openPartGui(player, GuiIds.GuiKey.PRIORITY, this);
         }
 
         return true;
@@ -176,12 +186,12 @@ public final class EMCModulePart extends AEBasePart
     }
 
     @Override
-    public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        player.closeContainer();
+    public void returnToMainContainer(EntityPlayer player, ISubGui subGui) {
+        player.closeScreen();
     }
 
     @Override
-    public ItemStack getMainMenuIcon() {
-        return AppliedE.EMC_MODULE.asItem().getDefaultInstance();
+    public ItemStack getMainContainerIcon() {
+        return new ItemStack(AppliedEItems.EMC_MODULE);
     }
 }

@@ -1,7 +1,7 @@
 {
   "variants": {
-    "": {
-      "model": "appliede:block/emc_interface"
+    "normal": {
+      "model": "appliede:emc_interface"
     }
   }
 }

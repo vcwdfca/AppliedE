@@ -1,7 +1,7 @@
 package gripe._90.appliede.integration.tooltip;
 
-import appeng.api.integrations.igtooltip.PartTooltips;
-import appeng.api.integrations.igtooltip.TooltipProvider;
+import ae2.api.integrations.igtooltip.PartTooltips;
+import ae2.api.integrations.igtooltip.TooltipProvider;
 
 import gripe._90.appliede.part.EMCModulePart;
 

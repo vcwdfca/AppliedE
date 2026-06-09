@@ -1,37 +1,24 @@
 package gripe._90.appliede.mixin.misc;
 
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.energy.IEnergySource;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.stacks.AEKey;
-import appeng.api.storage.MEStorage;
-import appeng.menu.me.common.MEStorageMenu;
+import ae2.api.stacks.AEKey;
 
 import gripe._90.appliede.me.key.EMCKey;
 
-@Mixin(MEStorageMenu.class)
+@Mixin(targets = "ae2.container.me.common.ContainerMEStorage$1")
 public abstract class MEStorageMenuMixin {
     // spotless:off
-    @WrapOperation(
-            method = "lambda$tryFillContainerItem$3",
+    @ModifyArg(
+            method = "extract",
             at = @At(
                     value = "INVOKE",
-                    target = "Lappeng/api/storage/StorageHelper;poweredExtraction(Lappeng/api/networking/energy/IEnergySource;Lappeng/api/storage/MEStorage;Lappeng/api/stacks/AEKey;JLappeng/api/networking/security/IActionSource;Lappeng/api/config/Actionable;)J"))
+                    target = "Lae2/api/storage/StorageHelper;poweredExtraction(Lae2/api/networking/energy/IEnergySource;Lae2/api/storage/MEStorage;Lae2/api/stacks/AEKey;JLae2/api/networking/security/IActionSource;Lae2/api/config/Actionable;)J"),
+            index = 2)
     // spotless:on
-    private long emcExtraction(
-            IEnergySource energySource,
-            MEStorage storage,
-            AEKey what,
-            long amount,
-            IActionSource source,
-            Actionable mode,
-            Operation<Long> original) {
-        return original.call(energySource, storage, what instanceof EMCKey ? EMCKey.BASE : what, amount, source, mode);
+    private AEKey emcExtraction(AEKey what) {
+        return what instanceof EMCKey ? EMCKey.BASE : what;
     }
 }

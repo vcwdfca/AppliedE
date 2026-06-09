@@ -1,31 +1,29 @@
 package gripe._90.appliede.menu;
 
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nullable;
 
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.GenericStack;
+import ae2.container.AEBaseContainer;
+import ae2.container.ISubGui;
+import ae2.container.SlotSemantics;
+import ae2.container.guisync.GuiSync;
+import ae2.container.implementations.ContainerSetStockAmount;
+import ae2.container.slot.InaccessibleSlot;
+import ae2.util.inv.AppEngInternalInventory;
 import com.google.common.primitives.Ints;
-
-import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
-import appeng.menu.AEBaseMenu;
-import appeng.menu.ISubMenu;
-import appeng.menu.MenuOpener;
-import appeng.menu.SlotSemantics;
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.SetStockAmountMenu;
-import appeng.menu.locator.MenuHostLocator;
-import appeng.menu.slot.InaccessibleSlot;
-import appeng.util.inv.AppEngInternalInventory;
-
-import gripe._90.appliede.AppliedE;
 import gripe._90.appliede.me.misc.EMCInterfaceLogicHost;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Slot;
 
-public class EMCSetStockAmountMenu extends AEBaseMenu implements ISubMenu {
+public class EMCSetStockAmountMenu extends AEBaseContainer implements ISubGui {
+    private static final ConcurrentMap<UUID, PendingAmount> PENDING_AMOUNTS = new ConcurrentHashMap<>();
+
     private final EMCInterfaceLogicHost host;
     private final Slot stockedItem;
     private AEItemKey whatToStock;
@@ -36,14 +34,31 @@ public class EMCSetStockAmountMenu extends AEBaseMenu implements ISubMenu {
     @GuiSync(2)
     private int maxAmount = -1;
 
-    private int slot;
+    @GuiSync(3)
+    private int slot = -1;
 
-    public EMCSetStockAmountMenu(int id, Inventory playerInventory, EMCInterfaceLogicHost host) {
-        super(AppliedE.EMC_SET_STOCK_AMOUNT_MENU.get(), id, playerInventory, host);
-        registerClientAction(SetStockAmountMenu.ACTION_SET_STOCK_AMOUNT, Integer.class, this::confirm);
+    public EMCSetStockAmountMenu(InventoryPlayer playerInventory, EMCInterfaceLogicHost host) {
+        super(playerInventory, host);
+        registerClientAction(ContainerSetStockAmount.ACTION_SET_STOCK_AMOUNT, Integer.class, this::confirm);
         this.host = host;
-        stockedItem = new InaccessibleSlot(new AppEngInternalInventory(1), 0);
+        this.stockedItem = new InaccessibleSlot(new AppEngInternalInventory(1), 0);
         addSlot(stockedItem, SlotSemantics.MACHINE_OUTPUT);
+
+        if (playerInventory.player instanceof EntityPlayerMP player) {
+            PendingAmount pending = PENDING_AMOUNTS.remove(player.getUniqueID());
+            if (pending != null) {
+                setWhatToStock(pending.slot, pending.whatToStock, pending.initialAmount);
+            }
+        }
+    }
+
+    public static void remember(
+        EntityPlayerMP player,
+        int slot,
+        AEItemKey toStock,
+        int initialAmount
+    ) {
+        PENDING_AMOUNTS.put(player.getUniqueID(), new PendingAmount(slot, toStock, initialAmount));
     }
 
     @Override
@@ -51,22 +66,12 @@ public class EMCSetStockAmountMenu extends AEBaseMenu implements ISubMenu {
         return host;
     }
 
-    public static void open(
-            ServerPlayer player, MenuHostLocator locator, int slot, AEItemKey toStock, int initialAmount) {
-        MenuOpener.open(AppliedE.EMC_SET_STOCK_AMOUNT_MENU.get(), player, locator);
-
-        if (player.containerMenu instanceof EMCSetStockAmountMenu stockMenu) {
-            stockMenu.setWhatToStock(slot, toStock, initialAmount);
-            stockMenu.broadcastChanges();
-        }
-    }
-
     private void setWhatToStock(int slot, AEItemKey whatToStock, int initialAmount) {
         this.slot = slot;
         this.whatToStock = Objects.requireNonNull(whatToStock, "whatToStock");
         this.initialAmount = initialAmount;
-        maxAmount = Ints.saturatedCast(host.getConfig().getMaxAmount(whatToStock));
-        stockedItem.set(whatToStock.wrapForDisplayOrFilter());
+        this.maxAmount = Ints.saturatedCast(host.getConfig().getMaxAmount(whatToStock));
+        stockedItem.putStack(whatToStock.wrapForDisplayOrFilter());
     }
 
     public int getMaxAmount() {
@@ -75,20 +80,19 @@ public class EMCSetStockAmountMenu extends AEBaseMenu implements ISubMenu {
 
     public void confirm(int amount) {
         if (isClientSide()) {
-            sendClientAction(SetStockAmountMenu.ACTION_SET_STOCK_AMOUNT, amount);
+            sendClientAction(ContainerSetStockAmount.ACTION_SET_STOCK_AMOUNT, amount);
             return;
         }
 
         var config = host.getConfig();
-
         if (!Objects.equals(config.getKey(slot), whatToStock)) {
-            host.returnToMainMenu(getPlayer(), this);
+            host.returnToMainContainer(getPlayer(), this);
             return;
         }
 
         amount = (int) Math.min(amount, config.getMaxAmount(whatToStock));
         config.setStack(slot, amount <= 0 ? null : new GenericStack(whatToStock, amount));
-        host.returnToMainMenu(getPlayer(), this);
+        host.returnToMainContainer(getPlayer(), this);
     }
 
     public int getInitialAmount() {
@@ -97,7 +101,19 @@ public class EMCSetStockAmountMenu extends AEBaseMenu implements ISubMenu {
 
     @Nullable
     public AEItemKey getWhatToStock() {
-        var stack = GenericStack.fromItemStack(stockedItem.getItem());
+        var stack = GenericStack.fromItemStack(stockedItem.getStack());
         return stack != null && stack.what() instanceof AEItemKey item ? item : null;
+    }
+
+    private static final class PendingAmount {
+        private final int slot;
+        private final AEItemKey whatToStock;
+        private final int initialAmount;
+
+        private PendingAmount(int slot, AEItemKey whatToStock, int initialAmount) {
+            this.slot = slot;
+            this.whatToStock = Objects.requireNonNull(whatToStock, "whatToStock");
+            this.initialAmount = initialAmount;
+        }
     }
 }
