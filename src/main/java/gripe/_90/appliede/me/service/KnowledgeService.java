@@ -177,6 +177,7 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
 
     private void updateKnownItems() {
         knownItemCache = null;
+        updateStorage();
         updatePatterns();
     }
 
@@ -211,6 +212,10 @@ public class KnowledgeService implements IGridService, IGridServiceProvider {
 
     void updatePatterns() {
         moduleNodes.forEach(ICraftingProvider::requestUpdate);
+    }
+
+    private void updateStorage() {
+        moduleNodes.forEach(IStorageProvider::requestUpdate);
     }
 
     BigInteger getEmc() {
