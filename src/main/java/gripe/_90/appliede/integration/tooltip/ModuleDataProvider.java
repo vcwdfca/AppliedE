@@ -4,8 +4,6 @@ import java.util.Objects;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
 
 import ae2.api.integrations.igtooltip.TooltipBuilder;
 import ae2.api.integrations.igtooltip.TooltipContext;
@@ -17,6 +15,8 @@ import gripe._90.appliede.part.EMCModulePart;
 
 @SuppressWarnings({"UnstableApiUsage", "NonExtendableApiUsage"})
 public class ModuleDataProvider implements BodyProvider<EMCModulePart>, ServerDataProvider<EMCModulePart> {
+    private static final String OWNER_LABEL = "tooltip." + AppliedE.MODID + ".owner_label";
+
     static final ModuleDataProvider INSTANCE = new ModuleDataProvider();
 
     private ModuleDataProvider() {}
@@ -44,9 +44,7 @@ public class ModuleDataProvider implements BodyProvider<EMCModulePart>, ServerDa
 
         if (serverData.hasKey("owner")) {
             var owner = serverData.getString("owner");
-            var label = new TextComponentTranslation("tooltip." + AppliedE.MODID + ".owner");
-            label.appendSibling(new TextComponentString(": " + owner));
-            tooltip.addLine(label);
+            tooltip.addLine(tooltip.localize(OWNER_LABEL) + ": " + owner);
         }
     }
 }

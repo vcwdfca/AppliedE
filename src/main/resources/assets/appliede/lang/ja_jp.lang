@@ -35,5 +35,6 @@ gui.appliede.io_buses=ME錬成バス
 key.appliede.emc=EMC
 key.appliede.emc_tiered=EMC^%s
 tooltip.appliede.transmutable=EMCから変換可能(Shift+クリック/スクロール)
+tooltip.appliede.owner_label=オーナー
 tooltip.appliede.owner=オーナー: %s
 tooltip.appliede.not_installed=%sがインストールされていません。

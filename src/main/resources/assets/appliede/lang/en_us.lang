@@ -35,5 +35,6 @@ gui.appliede.io_buses=ME Transmutation Buses
 key.appliede.emc=EMC
 key.appliede.emc_tiered=EMC^%s
 tooltip.appliede.transmutable=Transmutable from EMC (Shift+Click/Scroll)
+tooltip.appliede.owner_label=Owner
 tooltip.appliede.owner=Owner: %s
 tooltip.appliede.not_installed=%s not installed.

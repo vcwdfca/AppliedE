@@ -35,5 +35,6 @@ gui.appliede.io_buses=ME转化总线
 key.appliede.emc=EMC
 key.appliede.emc_tiered=EMC^%s
 tooltip.appliede.transmutable=转化为EMC (Shift+点击/滚动)
+tooltip.appliede.owner_label=所有者
 tooltip.appliede.owner=所有者: %s
 tooltip.appliede.not_installed=%s未安装。

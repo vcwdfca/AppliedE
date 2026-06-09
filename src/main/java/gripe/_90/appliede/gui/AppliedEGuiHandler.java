@@ -8,6 +8,7 @@ import ae2.core.gui.locator.GuiHostLocator;
 import ae2.core.gui.locator.GuiHostLocators;
 import ae2.core.gui.locator.ItemGuiHostLocator;
 import ae2.core.gui.locator.PartLocator;
+import ae2.tile.AEBaseTile;
 import gripe._90.appliede.block.EMCInterfaceBlockEntity;
 import gripe._90.appliede.client.screen.EMCInterfaceScreen;
 import gripe._90.appliede.client.screen.EMCSetStockAmountScreen;
@@ -22,6 +23,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 import org.jetbrains.annotations.Nullable;
@@ -80,7 +82,7 @@ public final class AppliedEGuiHandler implements IGuiHandler {
                 return nameable.getDisplayName();
             }
         }
-        if (host instanceof ae2.tile.AEBaseTile tile) {
+        if (host instanceof AEBaseTile tile) {
             if (tile.hasCustomName()) {
                 return customTitle(tile.getCustomName());
             }
@@ -93,8 +95,8 @@ public final class AppliedEGuiHandler implements IGuiHandler {
         return null;
     }
 
-    private static @Nullable ITextComponent customTitle(@Nullable ITextComponent customName) {
-        return customName == null || customName.getUnformattedText().isEmpty() ? null : customName;
+    private static @Nullable ITextComponent customTitle(@Nullable String customName) {
+        return customName == null || customName.isEmpty() ? null : new TextComponentString(customName);
     }
 
     @Override
